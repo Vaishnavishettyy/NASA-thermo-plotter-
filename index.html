@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NASA Thermodynamic Species Plotter</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 40px;
+      margin-bottom: 30px;
+      animation: slideInUp 0.8s ease-out;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h1 {
+      text-align: center;
+      color: #fff;
+      font-weight: 700;
+      margin-bottom: 30px;
+      font-size: 2.5rem;
+      text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    label, .info-text {
+      color: #fff;
+      font-weight: 600;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .form-control, .form-select {
+      border-radius: 15px;
+      border: none;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+      box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.5);
+      transform: translateY(-2px);
+    }
+
+    #result {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 30px;
+      margin-top: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      animation: fadeIn 0.6s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .chart-container {
+      background: #fff;
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+      height: 450px;
+      position: relative;
+    }
+
+    .chart-container:hover {
+      transform: translateY(-5px);
+    }
+
+    canvas {
+      border-radius: 10px;
+    }
+
+    .species-info {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 25px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .upload-area {
+      border: 2px dashed rgba(255,255,255,0.5);
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .upload-area:hover {
+      border-color: rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.1);
+    }
+
+    .debug-info {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 20px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .sample-data-btn {
+      background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: 600;
+      margin: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .sample-data-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .save-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #6B73FF 0%, #000DFF 100%);
+      border: none;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-weight: 600;
+      z-index: 100;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .chart-title {
+      color: #333;
+      margin: 0;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="glass-card">
+      <h1>Thermodynamic Species Plotter</h1>
+
+      <div class="upload-area mb-4">
+        <label for="fileInput" class="form-label"> Upload File</label>
+        <input type="file" class="form-control mt-2" id="fileInput" accept=".dat,.pdf,.csv,.txt">
+        <!--load sample daata idith-->
+      </div>
+
+      <div id="dropdownContainer" style="display:none;" class="mb-4">
+        <label for="speciesSelect" class="form-label"> Select a Species:</label>
+        <select class="form-select mt-2" id="speciesSelect">
+          <option disabled selected>-- Choose a specie --</option>
+        </select>
+      </div>
+
+      <div id="result" class="d-none">
+        <div class="species-info" id="speciesInfo"></div>
+        
+        <div class="chart-container">
+          <div class="chart-header">
+            <h4 class="chart-title">Heat Capacity (Cp/R) vs Temperature</h4>
+            <button class="save-btn" onclick="saveChart('cpChart', 'HeatCapacity')">Save Plot</button>
+          </div>
+          <canvas id="cpChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+          <div class="chart-header">
+            <h4 class="chart-title">Enthalpy (H/RT) vs Temperature</h4>
+            <button class="save-btn" onclick="saveChart('hChart', 'Enthalpy')">Save Plot</button>
+          </div>
+          <canvas id="hChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+          <div class="chart-header">
+            <h4 class="chart-title">Entropy (S/R) vs Temperature</h4>
+            <button class="save-btn" onclick="saveChart('sChart', 'Entropy')">Save Plot</button>
+          </div>
+          <canvas id="sChart"></canvas>
+        </div>
+      </div>
+
+      <div id="debugInfo" class="debug-info" style="display: none;">
+        <h6>Debug Information:</h6>
+        <div id="debugContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let speciesData = {};
+    let cpChart = null, hChart = null, sChart = null;
+    let debugMode = false;
+    let currentSpecies = '';
+
+    // Toggle debug mode with Ctrl+D
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'd') {
+        e.preventDefault();
+        debugMode = !debugMode;
+        document.getElementById('debugInfo').style.display = debugMode ? 'block' : 'none';
+      }
+    });
+
+    function debugLog(message) {
+      console.log(message);
+      if (debugMode) {
+        const debugContent = document.getElementById('debugContent');
+        debugContent.innerHTML += message + '<br>';
+        debugContent.scrollTop = debugContent.scrollHeight;
+      }
+    }
+
+    function loadSampleData() {
+      // Sample NASA data for H2O (water vapor)
+      const sampleData = `H2O               TPIS89H   2O   1    0G   200.000  3500.000  1000.000    1
+ 3.03399249E+00 2.17691804E-03-1.64072518E-07-9.70419870E-11 1.68200992E-14    2
+-3.00042971E+04 4.96677010E+00 4.19864056E+00-2.03643410E-03 6.52040211E-06    3
+-5.48797062E-09 1.77197817E-12-3.02937267E+04-8.49032208E-01                   4
+O2                TPIS89O   2   0   0G   200.000  3500.000  1000.000    1
+ 3.28253784E+00 1.48308754E-03-7.57966669E-07 2.09470555E-10-2.16717794E-14    2
+-1.08845772E+03 5.45323129E+00 3.78245636E+00-2.99673416E-03 9.84730201E-06    3
+-9.68129509E-09 3.24372837E-12-1.06394356E+03 3.65767573E+00                   4
+N2                TPIS78N   2   0   0G   200.000  3500.000  1000.000    1
+ 2.92664000E+00 1.48797680E-03-5.68476000E-07 1.00970380E-10-6.75335100E-15    2
+-9.22797700E+02 5.98052800E+00 3.29867700E+00 1.40824040E-03-3.96322200E-06    3
+ 5.64151500E-09-2.44485400E-12-1.02089990E+03 3.95037200E+00                   4`;
+
+      processFileContent(sampleData);
+    }
+
+    function processFileContent(content) {
+      const lines = content.split('\n');
+      speciesData = {};
+      const select = document.getElementById('speciesSelect');
+      select.innerHTML = '<option disabled selected>-- Choose a species --</option>';
+
+      debugLog(`Processing file with ${lines.length} lines`);
+
+      for (let i = 0; i < lines.length - 3; i++) {
+        const header = lines[i].trim();
+        if (!header || header.length < 10) continue;
+        
+        debugLog(`Line ${i}: ${header}`);
+        
+        // Look for species header line (starts with chemical formula)
+        if (!/^[A-Za-z]/.test(header)) continue;
+        
+        const tokens = header.split(/\s+/);
+        const name = tokens[0];
+        
+        // Parse temperature ranges - look for G marker or temperature pattern
+        let tLow, tHigh, tMid;
+        
+        // Method 1: Look for 'G' marker
+        if (header.includes('G')) {
+          const gIndex = tokens.indexOf('G');
+          if (gIndex >= 0 && tokens.length > gIndex + 3) {
+            tLow = parseFloat(tokens[gIndex + 1]);
+            tHigh = parseFloat(tokens[gIndex + 2]);
+            tMid = parseFloat(tokens[gIndex + 3]);
+          }
+        }
+        
+        // Method 2: Look for temperature pattern (numbers > 200, typically 300-6000K)
+        if (isNaN(tLow) || isNaN(tHigh) || isNaN(tMid)) {
+          const nums = tokens.filter(t => !isNaN(parseFloat(t)) && parseFloat(t) > 200);
+          if (nums.length >= 3) {
+            tLow = parseFloat(nums[0]);
+            tHigh = parseFloat(nums[1]);
+            tMid = parseFloat(nums[2]);
+          }
+        }
+
+        if (isNaN(tLow) || isNaN(tHigh) || isNaN(tMid)) {
+          debugLog(`Skipping ${name}: invalid temperatures`);
+          continue;
+        }
+
+        debugLog(`Found species ${name}: T=${tLow}-${tHigh}K, mid=${tMid}K`);
+
+        // Extract coefficients from next 3 lines
+        const coeffBlock = lines.slice(i + 1, i + 4).join(' ');
+        const matches = coeffBlock.match(/[-+]?\d+\.\d+E[-+]?\d+/g);
+        
+        if (!matches || matches.length < 14) {
+          debugLog(`Insufficient coefficients for ${name}: found ${matches ? matches.length : 0}`);
+          continue;
+        }
+
+        // Store species data
+        speciesData[name] = {
+          tLow,
+          tHigh,
+          tMid,
+          high: matches.slice(0, 7).map(Number),
+          low: matches.slice(7, 14).map(Number)
+        };
+
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+
+        debugLog(`Successfully added species: ${name}`);
+        i += 3; // Skip the coefficient lines
+      }
+
+      if (Object.keys(speciesData).length > 0) {
+        document.getElementById('dropdownContainer').style.display = 'block';
+        debugLog(`Loaded ${Object.keys(speciesData).length} species`);
+      } else {
+        alert('No valid species data found in the file. Please check the file format.\n\nPress Ctrl+D to enable debug mode for detailed information.');
+      }
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        processFileContent(e.target.result);
+      };
+
+      reader.readAsText(file);
+    });
+
+    document.getElementById('speciesSelect').addEventListener('change', function () {
+      currentSpecies = this.value;
+      const data = speciesData[currentSpecies];
+      if (!data) {
+        debugLog('No data found for selected species: ' + currentSpecies);
+        return;
+      }
+
+      const { tLow, tHigh, tMid, high, low } = data;
+      debugLog(`Plotting ${currentSpecies}: T=${tLow}K to ${tHigh}K, mid=${tMid}K`);
+
+      const T = [], Cp = [], H = [], S = [];
+      const numPoints = 100;
+      const step = (tHigh - tLow) / numPoints;
+
+      for (let i = 0; i <= numPoints; i++) {
+        const t = tLow + i * step;
+        
+        // Choose coefficient set based on temperature vs mid-point
+        const a = t < tMid ? low : high;
+        
+        if (!a || a.length < 7) {
+          debugLog(`Invalid coefficients for T=${t}: ${a}`);
+          continue;
+        }
+        
+        T.push(t);
+        
+        // NASA polynomial equations
+        const T2 = t * t;
+        const T3 = T2 * t;
+        const T4 = T3 * t;
+        
+        // Cp/R = a1 + a2*T + a3*T^2 + a4*T^3 + a5*T^4
+        const cp = a[0] + a[1]*t + a[2]*T2 + a[3]*T3 + a[4]*T4;
+        Cp.push(cp);
+        
+        // H/RT = a1 + a2*T/2 + a3*T^2/3 + a4*T^3/4 + a5*T^4/5 + a6/T
+        const h = a[0] + a[1]*t/2 + a[2]*T2/3 + a[3]*T3/4 + a[4]*T4/5 + a[5]/t;
+        H.push(h);
+        
+        // S/R = a1*ln(T) + a2*T + a3*T^2/2 + a4*T^3/3 + a5*T^4/4 + a7
+        const s = a[0]*Math.log(t) + a[1]*t + a[2]*T2/2 + a[3]*T3/3 + a[4]*T4/4 + a[6];
+        S.push(s);
+      }
+
+      debugLog(`Generated ${T.length} data points`);
+      debugLog(`Cp range: ${Math.min(...Cp).toFixed(3)} to ${Math.max(...Cp).toFixed(3)}`);
+      debugLog(`H range: ${Math.min(...H).toFixed(3)} to ${Math.max(...H).toFixed(3)}`);
+      debugLog(`S range: ${Math.min(...S).toFixed(3)} to ${Math.max(...S).toFixed(3)}`);
+
+      // Update species info
+      document.getElementById('speciesInfo').innerHTML = `
+        <h3> ${currentSpecies}</h3>
+        <div class="row">
+          <div class="col-md-4"><strong>Low Temperature:</strong> ${tLow.toFixed(1)} K</div>
+          <div class="col-md-4"><strong>High Temperature:</strong> ${tHigh.toFixed(1)} K</div>
+          <div class="col-md-4"><strong>Mid Temperature:</strong> ${tMid.toFixed(1)} K</div>
+        </div>
+        <div class="mt-2">
+          <strong>Data Points:</strong> ${T.length} | <strong>Temperature Range:</strong> ${(tHigh - tLow).toFixed(1)} K
+        </div>
+        <div class="mt-2">
+          <strong>Value Ranges:</strong> Cp/R: ${Math.min(...Cp).toFixed(2)} to ${Math.max(...Cp).toFixed(2)} | 
+          H/RT: ${Math.min(...H).toFixed(2)} to ${Math.max(...H).toFixed(2)} | 
+          S/R: ${Math.min(...S).toFixed(2)} to ${Math.max(...S).toFixed(2)}
+        </div>
+      `;
+      
+      document.getElementById('result').classList.remove('d-none');
+
+      // Chart plotting function
+      const plotChart = (ctxId, label, values, color, chartRef) => {
+        try {
+          if (chartRef) {
+            chartRef.destroy();
+          }
+          
+          if (!values || values.length === 0) {
+            debugLog(`No data to plot for ${label}`);
+            return null;
+          }
+          
+          const ctx = document.getElementById(ctxId);
+          if (!ctx) {
+            debugLog(`Canvas element ${ctxId} not found`);
+            return null;
+          }
+          
+          debugLog(`Creating chart for ${label} with ${values.length} points`);
+          
+          return new Chart(ctx, {
+            type: 'line',
+            data: {
+              datasets: [{
+                label: label,
+                data: T.map((temp, i) => ({ x: temp, y: values[i] })),
+                borderColor: color,
+                backgroundColor: color.replace('1)', '0.1)'),
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                pointBackgroundColor: color,
+                tension: 0.4,
+                borderWidth: 3
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: { 
+                  type: 'linear',
+                  title: { 
+                    display: true, 
+                    text: 'Temperature (K)',
+                    font: { size: 16, weight: 'bold' }
+                  },
+                  grid: { color: 'rgba(0,0,0,0.1)' }
+                },
+                y: { 
+                  title: { 
+                    display: true, 
+                    text: label,
+                    font: { size: 16, weight: 'bold' }
+                  },
+                  grid: { color: 'rgba(0,0,0,0.1)' }
+                }
+              },
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    label: ctx => `${label}: ${ctx.parsed.y.toFixed(6)} at ${ctx.parsed.x.toFixed(1)} K`
+                  },
+                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  titleColor: '#fff',
+                  bodyColor: '#fff'
+                },
+                legend: {
+                  display: true,
+                  labels: { font: { size: 14, weight: 'bold' } }
+                }
+              },
+              interaction: {
+                intersect: false,
+                mode: 'index'
+              }
+            }
+          });
+        } catch (error) {
+          debugLog(`Error creating chart for ${label}: ${error.message}`);
+          return null;
+        }
+      };
+
+      // Destroy existing charts
+      if (cpChart) cpChart.destroy();
+      if (hChart) hChart.destroy();
+      if (sChart) sChart.destroy();
+
+      // Create new charts with enhanced styling
+      cpChart = plotChart('cpChart', 'Cp/R', Cp, 'rgba(255, 99, 132, 1)', cpChart);
+      hChart = plotChart('hChart', 'H/RT', H, 'rgba(54, 162, 235, 1)', hChart);
+      sChart = plotChart('sChart', 'S/R', S, 'rgba(75, 192, 192, 1)', sChart);
+
+      debugLog(`Charts created for ${currentSpecies}: Cp=${!!cpChart}, H=${!!hChart}, S=${!!sChart}`);
+    });
+
+    // Function to save chart as PNG image
+    function saveChart(chartId, chartName) {
+      if (!currentSpecies) {
+        alert('Please select a species first');
+        return;
+      }
+      
+      const canvas = document.getElementById(chartId);
+      if (!canvas) {
+        debugLog(`Canvas element ${chartId} not found`);
+        return;
+      }
+      
+      // Create a temporary link
+      const link = document.createElement('a');
+      link.download = `${currentSpecies}_${chartName}_Plot.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      debugLog(`Saved ${chartName} plot for ${currentSpecies}`);
+    }
+
+    // Initialize with sample data message
+    debugLog('NASA Thermodynamic Species Plotter loaded. Press Ctrl+D to toggle debug mode.');
+  </script>
+</body>
+</html>
